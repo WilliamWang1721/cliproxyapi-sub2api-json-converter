@@ -53,6 +53,9 @@ function detectFormat(obj) {
   if (isPlainObject(obj) && 'account_id' in obj && 'access_token' in obj) {
     return 'codex';
   }
+  if (isPlainObject(obj) && Array.isArray(obj.accounts) && Array.isArray(obj.proxies)) {
+    return 'sub2api';
+  }
   if (isPlainObject(obj) && 'account' in obj && 'accessToken' in obj) {
     return 'sub2api';
   }
@@ -153,7 +156,39 @@ function buildSyntheticIdToken(source) {
   ].join('.');
 }
 
+function getFirstSub2ApiAccount(source) {
+  if (!Array.isArray(source.accounts)) return null;
+  if (!source.accounts.length) {
+    throw new Error('Sub2API import package has no accounts.');
+  }
+  return source.accounts[0];
+}
+
+function sub2ApiAccountToCodexShape(account) {
+  const credentials = account?.credentials ?? {};
+  return {
+    type: 'codex',
+    email: credentials.email ?? account?.name ?? '',
+    account_id: credentials.chatgpt_account_id ?? '',
+    chatgpt_account_id: credentials.chatgpt_account_id ?? '',
+    plan_type: credentials.chatgpt_plan_type ?? 'plus',
+    chatgpt_plan_type: credentials.chatgpt_plan_type ?? 'plus',
+    id_token: credentials.id_token ?? '',
+    access_token: credentials.access_token ?? '',
+    refresh_token: credentials.refresh_token ?? '',
+    session_token: credentials.session_token ?? '',
+    expired: credentials.expires_at ?? nowIso(),
+    disabled: account?.disabled ?? false,
+    id_token_synthetic: false,
+  };
+}
+
 function toCodex(source) {
+  const packageAccount = getFirstSub2ApiAccount(source);
+  if (packageAccount) {
+    return toCodex(sub2ApiAccountToCodexShape(packageAccount));
+  }
+
   const decodedToken = decodeJwtPayload(source.id_token);
   const email = source.email ?? source.user?.email ?? decodedToken?.email ?? '';
   const accountId = source.account_id ?? source.account?.id ?? decodedToken?.['https://api.openai.com/auth']?.chatgpt_account_id ?? '';
@@ -189,21 +224,42 @@ function toCodex(source) {
 }
 
 function toSub2Api(source) {
+  if (Array.isArray(source.accounts) && Array.isArray(source.proxies)) {
+    return source;
+  }
+
   const decodedToken = decodeJwtPayload(source.id_token);
   const accountId = source.account_id ?? source.chatgpt_account_id ?? decodedToken?.['https://api.openai.com/auth']?.chatgpt_account_id ?? '';
   const planType = source.plan_type ?? source.chatgpt_plan_type ?? decodedToken?.['https://api.openai.com/auth']?.chatgpt_plan_type ?? 'plus';
   const email = source.email ?? decodedToken?.email ?? '';
-  const user = source.user ?? buildDefaultUser(email, decodedToken);
+  const account = source.account ?? buildDefaultAccount(accountId, planType);
+  const credentials = {
+    refresh_token: source.refresh_token ?? '',
+    id_token: source.id_token ?? buildSyntheticIdToken(source),
+    access_token: source.access_token ?? source.accessToken ?? '',
+    session_token: source.session_token ?? source.sessionToken ?? '',
+    chatgpt_account_id: accountId,
+    email,
+  };
 
   return {
-    WARNING_BANNER,
-    accessToken: source.access_token ?? source.accessToken ?? '',
-    account: source.account ?? buildDefaultAccount(accountId, planType),
-    authProvider: source.authProvider ?? 'openai',
-    expires: source.expired ?? source.expires ?? nowIso(),
-    rumViewTags: source.rumViewTags ?? { light_account: { fetched: false } },
-    sessionToken: source.session_token ?? source.sessionToken ?? '',
-    user,
+    exported_at: nowIso(),
+    proxies: Array.isArray(source.proxies) ? source.proxies : [],
+    accounts: [
+      {
+        name: email || account.id || 'openai-account',
+        platform: 'openai',
+        type: 'oauth',
+        credentials,
+        extra: {
+          load_factor: source.load_factor ?? source.extra?.load_factor ?? 10,
+        },
+        concurrency: source.concurrency ?? 10,
+        priority: source.priority ?? 1,
+        rate_multiplier: source.rate_multiplier ?? 1,
+        auto_pause_on_expired: source.auto_pause_on_expired ?? true,
+      },
+    ],
   };
 }
 
