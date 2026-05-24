@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CLIProxyAPI / Sub2API JSON 转换</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --panel-2: #f0f3f7;
+        --text: #17202a;
+        --muted: #647181;
+        --border: #d8dee8;
+        --accent: #0f766e;
+        --accent-dark: #0b5f59;
+        --danger: #b42318;
+        --success: #087443;
+        --shadow: 0 18px 42px rgba(17, 24, 39, 0.08);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: clamp(24px, 4vw, 36px);
+        line-height: 1.15;
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+        max-width: 740px;
+      }
+
+      .status {
+        min-width: 220px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.4;
+        box-shadow: var(--shadow);
+      }
+
+      .status strong {
+        display: block;
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px minmax(0, 1fr);
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        min-width: 0;
+      }
+
+      .panel-head {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .panel-title strong {
+        font-size: 15px;
+      }
+
+      .panel-title span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .input-wrap,
+      .output-wrap {
+        padding: 12px;
+      }
+
+      textarea {
+        width: 100%;
+        height: 560px;
+        resize: vertical;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fbfcfe;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.55;
+        padding: 12px;
+        outline: none;
+      }
+
+      textarea:focus {
+        border-color: rgba(15, 118, 110, 0.8);
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+      }
+
+      .controls {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .dropzone {
+        border: 1px dashed #9aa7b7;
+        border-radius: 8px;
+        background: var(--panel-2);
+        padding: 16px;
+      }
+
+      .dropzone label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 4px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .segmented button {
+        border: 0;
+        border-radius: 6px;
+        min-height: 38px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .segmented button.active {
+        background: var(--panel);
+        color: var(--text);
+        box-shadow: 0 1px 4px rgba(17, 24, 39, 0.12);
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      select {
+        min-height: 40px;
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--text);
+        padding: 0 10px;
+      }
+
+      .btn {
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--text);
+        padding: 0 12px;
+        font-weight: 700;
+        transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+      }
+
+      .btn:hover {
+        background: #eef2f6;
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+      }
+
+      .btn.primary:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+      }
+
+      .btn.full {
+        width: 100%;
+      }
+
+      .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .meta {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fbfcfe;
+        font-size: 13px;
+      }
+
+      .meta-row {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 10px;
+      }
+
+      .meta-row span:first-child {
+        color: var(--muted);
+      }
+
+      .meta-row span:last-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-family: var(--mono);
+      }
+
+      .message {
+        min-height: 42px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #fbfcfe;
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .message.error {
+        border-color: rgba(180, 35, 24, 0.35);
+        color: var(--danger);
+        background: #fff8f7;
+      }
+
+      .message.success {
+        border-color: rgba(8, 116, 67, 0.28);
+        color: var(--success);
+        background: #f2fbf6;
+      }
+
+      .icon-btn {
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #ffffff;
+        display: inline-grid;
+        place-items: center;
+        color: var(--muted);
+      }
+
+      .icon-btn:hover {
+        color: var(--text);
+        background: #eef2f6;
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      @media (max-width: 980px) {
+        .topbar {
+          flex-direction: column;
+        }
+
+        .status {
+          width: 100%;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        textarea {
+          height: 360px;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .app {
+          width: min(100% - 20px, 1180px);
+          padding: 18px 0;
+        }
+
+        .panel-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .toolbar {
+          width: 100%;
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="topbar" aria-label="页面信息">
+        <div>
+          <h1>CLIProxyAPI / Sub2API JSON 转换</h1>
+          <p class="subtitle">本页面在浏览器本地完成格式转换，支持上传 JSON 或直接粘贴内容。</p>
+        </div>
+        <div class="status" aria-live="polite">
+          <strong id="statusTitle">等待输入</strong>
+          <span id="statusText">选择文件或粘贴 JSON 后开始转换。</span>
+        </div>
+      </section>
+
+      <section class="grid" aria-label="转换器">
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <strong>输入 JSON</strong>
+              <span id="detectedLabel">未识别格式</span>
+            </div>
+            <div class="toolbar">
+              <button class="icon-btn" id="pasteBtn" type="button" title="从剪贴板粘贴" aria-label="从剪贴板粘贴">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 4h8" />
+                  <path d="M9 2h6v4H9z" />
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                </svg>
+              </button>
+              <button class="icon-btn" id="clearBtn" type="button" title="清空" aria-label="清空">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 16h10l1-16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="input-wrap">
+            <textarea id="inputJson" spellcheck="false" placeholder='粘贴 Sub2API 或 CLIProxyAPI JSON'></textarea>
+          </div>
+        </article>
+
+        <aside class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <strong>转换设置</strong>
+              <span>自动识别来源格式</span>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="dropzone">
+              <label>
+                <span class="label">选择 JSON 文件</span>
+                <input id="fileInput" type="file" accept="application/json,.json" />
+              </label>
+            </div>
+
+            <div class="field">
+              <span class="label">目标格式</span>
+              <div class="segmented" role="group" aria-label="目标格式">
+                <button id="toCliProxyBtn" class="active" type="button" data-target="cliproxyapi">CLIProxyAPI</button>
+                <button id="toSub2ApiBtn" type="button" data-target="sub2api">Sub2API</button>
+              </div>
+            </div>
+
+            <button class="btn primary full" id="convertBtn" type="button">转换</button>
+            <button class="btn full" id="downloadBtn" type="button" disabled>下载结果</button>
+
+            <div class="meta" aria-label="识别信息">
+              <div class="meta-row">
+                <span>来源</span>
+                <span id="sourceMeta">-</span>
+              </div>
+              <div class="meta-row">
+                <span>目标</span>
+                <span id="targetMeta">CLIProxyAPI</span>
+              </div>
+              <div class="meta-row">
+                <span>邮箱</span>
+                <span id="emailMeta">-</span>
+              </div>
+              <div class="meta-row">
+                <span>账户 ID</span>
+                <span id="accountMeta">-</span>
+              </div>
+            </div>
+
+            <div class="message" id="messageBox">准备就绪。</div>
+          </div>
+        </aside>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <strong>输出 JSON</strong>
+              <span id="outputLabel">尚未转换</span>
+            </div>
+            <div class="toolbar">
+              <button class="icon-btn" id="copyBtn" type="button" title="复制结果" aria-label="复制结果" disabled>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="output-wrap">
+            <textarea id="outputJson" spellcheck="false" readonly placeholder="转换结果会显示在这里"></textarea>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const WARNING_BANNER =
+        "!!!!!!!!!!!!!!!!!!!! DO NOT SHARE ANY PART OF THE INFORMATION YOU SEE HERE. THIS INFORMATION IS SENSITIVE AND CAN GRANT ACCESS TO YOUR ACCOUNT. SHARING THIS INFORMATION IS LIKE SHARING YOUR PASSWORD. !!!!!!!!!!!!!!!!!!!!";
+
+      const state = {
+        target: "cliproxyapi",
+        output: "",
+        sourceFileName: "",
+      };
+
+      const inputJson = document.querySelector("#inputJson");
+      const outputJson = document.querySelector("#outputJson");
+      const fileInput = document.querySelector("#fileInput");
+      const convertBtn = document.querySelector("#convertBtn");
+      const downloadBtn = document.querySelector("#downloadBtn");
+      const copyBtn = document.querySelector("#copyBtn");
+      const pasteBtn = document.querySelector("#pasteBtn");
+      const clearBtn = document.querySelector("#clearBtn");
+      const toCliProxyBtn = document.querySelector("#toCliProxyBtn");
+      const toSub2ApiBtn = document.querySelector("#toSub2ApiBtn");
+      const statusTitle = document.querySelector("#statusTitle");
+      const statusText = document.querySelector("#statusText");
+      const detectedLabel = document.querySelector("#detectedLabel");
+      const outputLabel = document.querySelector("#outputLabel");
+      const messageBox = document.querySelector("#messageBox");
+      const sourceMeta = document.querySelector("#sourceMeta");
+      const targetMeta = document.querySelector("#targetMeta");
+      const emailMeta = document.querySelector("#emailMeta");
+      const accountMeta = document.querySelector("#accountMeta");
+
+      function setMessage(text, type = "neutral") {
+        messageBox.textContent = text;
+        messageBox.classList.toggle("error", type === "error");
+        messageBox.classList.toggle("success", type === "success");
+      }
+
+      function setStatus(title, text) {
+        statusTitle.textContent = title;
+        statusText.textContent = text;
+      }
+
+      function isPlainObject(value) {
+        return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+      }
+
+      function detectFormat(obj) {
+        if (isPlainObject(obj) && "account_id" in obj && "access_token" in obj) {
+          return "cliproxyapi";
+        }
+        if (isPlainObject(obj) && "account" in obj && "accessToken" in obj) {
+          return "sub2api";
+        }
+        throw new Error("无法识别 JSON 格式。");
+      }
+
+      function displayFormat(format) {
+        if (format === "cliproxyapi") return "CLIProxyAPI";
+        if (format === "sub2api") return "Sub2API";
+        return "-";
+      }
+
+      function base64UrlEncode(input) {
+        const bytes = new TextEncoder().encode(input);
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+      }
+
+      function base64UrlDecode(input) {
+        const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+        const binary = atob(padded);
+        const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+      }
+
+      function decodeJwtPayload(token) {
+        if (typeof token !== "string") return null;
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+        try {
+          return JSON.parse(base64UrlDecode(parts[1]));
+        } catch {
+          return null;
+        }
+      }
+
+      function nowIso() {
+        return new Date().toISOString();
+      }
+
+      function secondsFromIso(value) {
+        const ms = Date.parse(value);
+        return Number.isFinite(ms) ? Math.floor(ms / 1000) : Math.floor(Date.now() / 1000);
+      }
+
+      function buildDefaultAccount(id, planType) {
+        return {
+          computeResidency: "no_constraint",
+          id,
+          isConversationClassifierEnabledForWorkspace: true,
+          isDelinquent: false,
+          isFedrampCompliantWorkspace: false,
+          isFinservEnabledWorkspace: false,
+          planType,
+          residencyRegion: "no_constraint",
+          structure: "personal",
+        };
+      }
+
+      function buildDefaultUser(email, decodedToken) {
+        const auth = decodedToken?.["https://api.openai.com/auth"] ?? {};
+        return {
+          acr: "http://schemas.openid.net/pape/policies/2007/06/multi-factor",
+          amr: ["otp", "mfa", "urn:openai:amr:otp_totp"],
+          email,
+          iat: decodedToken?.iat ?? Math.floor(Date.now() / 1000),
+          id: auth.user_id ?? auth.chatgpt_user_id ?? "user-unknown",
+          idp: "google-oauth2",
+          mfa: true,
+          name: email.split("@")[0] || "Unknown",
+        };
+      }
+
+      function buildSyntheticIdToken(source) {
+        const accountId = source.account_id ?? source.account?.id ?? "";
+        const planType = source.plan_type ?? source.account?.planType ?? "plus";
+        const email = source.email ?? source.user?.email ?? "";
+        const userId = source.user?.id ?? source.user_id ?? "user-unknown";
+        const now = Math.floor(Date.now() / 1000);
+        const expires = source.expired ? secondsFromIso(source.expired) : now + 60 * 60 * 24 * 90;
+        const payload = {
+          iat: now,
+          exp: expires,
+          "https://api.openai.com/auth": {
+            chatgpt_account_id: accountId,
+            chatgpt_plan_type: planType,
+            chatgpt_user_id: userId,
+            user_id: userId,
+          },
+          email,
+        };
+        return [
+          base64UrlEncode(JSON.stringify({ alg: "none", typ: "JWT", cpa_synthetic: true })),
+          base64UrlEncode(JSON.stringify(payload)),
+          "",
+        ].join(".");
+      }
+
+      function toCliProxyApi(source) {
+        const decodedToken = decodeJwtPayload(source.id_token);
+        const email = source.email ?? source.user?.email ?? decodedToken?.email ?? "";
+        const accountId =
+          source.account_id ??
+          source.account?.id ??
+          decodedToken?.["https://api.openai.com/auth"]?.chatgpt_account_id ??
+          "";
+        const planType =
+          source.plan_type ??
+          source.account?.planType ??
+          decodedToken?.["https://api.openai.com/auth"]?.chatgpt_plan_type ??
+          "plus";
+        const expired = source.expired ?? source.expires ?? nowIso();
+        const idToken =
+          source.id_token ??
+          buildSyntheticIdToken({
+            account_id: accountId,
+            plan_type: planType,
+            email,
+            user: source.user,
+            expired,
+          });
+
+        return {
+          type: source.type ?? "codex",
+          email,
+          account_id: accountId,
+          chatgpt_account_id: source.chatgpt_account_id ?? accountId,
+          plan_type: planType,
+          chatgpt_plan_type: source.chatgpt_plan_type ?? planType,
+          id_token: idToken,
+          access_token: source.access_token ?? source.accessToken ?? "",
+          refresh_token: source.refresh_token ?? "",
+          session_token: source.session_token ?? source.sessionToken ?? "",
+          last_refresh: source.last_refresh ?? source.expires ?? nowIso(),
+          expired,
+          disabled: source.disabled ?? false,
+          id_token_synthetic: source.id_token_synthetic ?? !source.id_token,
+        };
+      }
+
+      function toSub2Api(source) {
+        const decodedToken = decodeJwtPayload(source.id_token);
+        const accountId =
+          source.account_id ??
+          source.chatgpt_account_id ??
+          decodedToken?.["https://api.openai.com/auth"]?.chatgpt_account_id ??
+          "";
+        const planType =
+          source.plan_type ??
+          source.chatgpt_plan_type ??
+          decodedToken?.["https://api.openai.com/auth"]?.chatgpt_plan_type ??
+          "plus";
+        const email = source.email ?? decodedToken?.email ?? "";
+
+        return {
+          WARNING_BANNER,
+          accessToken: source.access_token ?? source.accessToken ?? "",
+          account: source.account ?? buildDefaultAccount(accountId, planType),
+          authProvider: source.authProvider ?? "openai",
+          expires: source.expired ?? source.expires ?? nowIso(),
+          rumViewTags: source.rumViewTags ?? { light_account: { fetched: false } },
+          sessionToken: source.session_token ?? source.sessionToken ?? "",
+          user: source.user ?? buildDefaultUser(email, decodedToken),
+        };
+      }
+
+      function getSummary(obj, format) {
+        if (format === "cliproxyapi") {
+          return {
+            email: obj.email ?? "-",
+            accountId: obj.account_id ?? obj.chatgpt_account_id ?? "-",
+          };
+        }
+        return {
+          email: obj.user?.email ?? "-",
+          accountId: obj.account?.id ?? "-",
+        };
+      }
+
+      function updateTarget(target) {
+        state.target = target;
+        toCliProxyBtn.classList.toggle("active", target === "cliproxyapi");
+        toSub2ApiBtn.classList.toggle("active", target === "sub2api");
+        targetMeta.textContent = displayFormat(target);
+        outputLabel.textContent = target === "cliproxyapi" ? "输出 CLIProxyAPI 格式" : "输出 Sub2API 格式";
+      }
+
+      function parseInput() {
+        const raw = inputJson.value.trim();
+        if (!raw) throw new Error("请输入 JSON。");
+        const obj = JSON.parse(raw);
+        const format = detectFormat(obj);
+        const summary = getSummary(obj, format);
+        sourceMeta.textContent = displayFormat(format);
+        emailMeta.textContent = summary.email;
+        accountMeta.textContent = summary.accountId;
+        detectedLabel.textContent = `已识别：${displayFormat(format)}`;
+        return { obj, format };
+      }
+
+      function convert() {
+        try {
+          const { obj, format } = parseInput();
+          const converted = state.target === "cliproxyapi" ? toCliProxyApi(obj) : toSub2Api(obj);
+          state.output = `${JSON.stringify(converted, null, 2)}\n`;
+          outputJson.value = state.output;
+          downloadBtn.disabled = false;
+          copyBtn.disabled = false;
+          setStatus("转换完成", `${displayFormat(format)} -> ${displayFormat(state.target)}`);
+          setMessage("转换完成。", "success");
+        } catch (error) {
+          state.output = "";
+          outputJson.value = "";
+          downloadBtn.disabled = true;
+          copyBtn.disabled = true;
+          detectedLabel.textContent = "未识别格式";
+          sourceMeta.textContent = "-";
+          emailMeta.textContent = "-";
+          accountMeta.textContent = "-";
+          setStatus("转换失败", "检查 JSON 内容或目标格式。");
+          setMessage(error instanceof Error ? error.message : String(error), "error");
+        }
+      }
+
+      function suggestedFileName() {
+        const base = state.sourceFileName.replace(/\.json$/i, "") || "converted";
+        const suffix = state.target === "cliproxyapi" ? "cliproxyapi" : "sub2api";
+        return `${base}.${suffix}.json`;
+      }
+
+      async function readFile(file) {
+        state.sourceFileName = file.name;
+        inputJson.value = await file.text();
+        setStatus("文件已载入", file.name);
+        setMessage("文件已载入，可以直接转换。");
+        try {
+          const { format } = parseInput();
+          updateTarget(format === "sub2api" ? "cliproxyapi" : "sub2api");
+        } catch {
+          detectedLabel.textContent = "未识别格式";
+        }
+      }
+
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        try {
+          await readFile(file);
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error), "error");
+        }
+      });
+
+      toCliProxyBtn.addEventListener("click", () => updateTarget("cliproxyapi"));
+      toSub2ApiBtn.addEventListener("click", () => updateTarget("sub2api"));
+      convertBtn.addEventListener("click", convert);
+
+      inputJson.addEventListener("input", () => {
+        state.output = "";
+        outputJson.value = "";
+        downloadBtn.disabled = true;
+        copyBtn.disabled = true;
+        try {
+          const { format } = parseInput();
+          setStatus("已识别输入", displayFormat(format));
+        } catch {
+          detectedLabel.textContent = "未识别格式";
+          sourceMeta.textContent = "-";
+          emailMeta.textContent = "-";
+          accountMeta.textContent = "-";
+        }
+      });
+
+      pasteBtn.addEventListener("click", async () => {
+        try {
+          inputJson.value = await navigator.clipboard.readText();
+          inputJson.dispatchEvent(new Event("input"));
+          setMessage("已从剪贴板粘贴。");
+        } catch {
+          setMessage("浏览器没有允许读取剪贴板。", "error");
+        }
+      });
+
+      clearBtn.addEventListener("click", () => {
+        inputJson.value = "";
+        outputJson.value = "";
+        state.output = "";
+        state.sourceFileName = "";
+        fileInput.value = "";
+        downloadBtn.disabled = true;
+        copyBtn.disabled = true;
+        detectedLabel.textContent = "未识别格式";
+        outputLabel.textContent = "尚未转换";
+        sourceMeta.textContent = "-";
+        emailMeta.textContent = "-";
+        accountMeta.textContent = "-";
+        setStatus("等待输入", "选择文件或粘贴 JSON 后开始转换。");
+        setMessage("已清空。");
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        if (!state.output) return;
+        const blob = new Blob([state.output], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = suggestedFileName();
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        if (!state.output) return;
+        try {
+          await navigator.clipboard.writeText(state.output);
+          setMessage("结果已复制。", "success");
+        } catch {
+          outputJson.select();
+          document.execCommand("copy");
+          setMessage("结果已复制。", "success");
+        }
+      });
+    </script>
+  </body>
+</html>
